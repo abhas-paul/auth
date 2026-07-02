@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 if(!process.env.MONGODB_URI || !process.env.PORT) {
-    throw new Error("Missing required environment variables.");
+    throw new Error("Missing required environment variables: MONGODB_URI and PORT must be set.");
 }
 
 const config = {
