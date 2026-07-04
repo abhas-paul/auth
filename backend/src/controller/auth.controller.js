@@ -51,4 +51,24 @@ async function me(req, res) {
     
 };
 
-export { register, login, logout, me };
+async function refreshToken(req, res) {
+
+    const refreshToken = req.cookies.refreshToken;
+
+    if (!refreshToken) {
+        return res.status(401).json({ message: "No refresh token provided" });
+    }
+
+    const decoded = jwt.verify(refreshToken, config.JWT_SECRET);
+
+    const accessToken = jwt.sign({ id: decoded.id }, config.JWT_SECRET, { expiresIn: "15m" });
+
+    const newRefreshToken = jwt.sign({ id: decoded.id }, config.JWT_SECRET, { expiresIn: "7d" });
+
+    res.cookie("refreshToken", newRefreshToken, { httpOnly: true, secure: true, sameSite: "strict", maxAge: 7 * 24 * 60 * 60 * 1000 });
+
+    res.status(200).json({ message: "Access token refreshed", token: accessToken });
+
+};
+
+export { register, login, logout, me, refreshToken };
