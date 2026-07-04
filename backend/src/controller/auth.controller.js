@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import User from "../models/User.model.js";
 import Session from "../models/Session.model.js";
 import config from "../config/config.js";
+import { sendEmail } from "../utils/email.js";
 
 
 async function register(req, res) {
@@ -21,16 +22,10 @@ async function register(req, res) {
     const user = new User({ username, email, password: hashedPassword });
     await user.save();
 
-    const refreshToken = jwt.sign({ id: user._id }, config.JWT_SECRET, { expiresIn: "7d" });
-    const refreshTokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
+    await sendEmail(user.email, "Welcome to Cipher", `<h1>Welcome, ${user.username}!</h1><p>Thank you for registering at Cipher. We're excited to have you on board!</p>`);
 
-    const session = new Session({ user: user._id, refreshToken: refreshTokenHash, ip: req.ip, userAgent: req.headers["user-agent"] });
-    await session.save();
-
-    const accessToken = jwt.sign({ id: user._id, sessionId: session._id }, config.JWT_SECRET, { expiresIn: "15m" });
-
-    res.cookie("refreshToken", refreshToken, { httpOnly: true, secure: true, sameSite: "strict", maxAge: 7 * 24 * 60 * 60 * 1000 });
-    res.status(201).json({ message: "User registered successfully", user: { id: user._id, username: user.username, email: user.email }, token: accessToken });
+    
+    res.status(201).json({ message: "User registered successfully", user: { id: user._id, username: user.username, email: user.email, verified: user.verified } });
 
 };
 
