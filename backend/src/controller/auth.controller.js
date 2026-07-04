@@ -62,6 +62,23 @@ async function logout(req, res) {
 
 };
 
+async function logoutAll(req, res) {
+
+    const refreshToken = req.cookies.refreshToken;
+
+    if (!refreshToken) {
+        return res.status(400).json({ message: "No refresh token provided" });
+    }
+
+    const decoded = jwt.verify(refreshToken, config.JWT_SECRET);
+
+    await Session.updateMany({ user: decoded.id, revoked: false }, { revoked: true });
+
+    res.clearCookie("refreshToken");
+    res.status(200).json({ message: "User logged out from all sessions successfully" });
+
+};
+
 async function me(req, res) {
 
     const token = req.headers.authorization?.split(" ")[1];
@@ -110,4 +127,4 @@ async function refreshToken(req, res) {
 
 };
 
-export { register, login, logout, me, refreshToken };
+export { register, login, logout, me, refreshToken, logoutAll };
