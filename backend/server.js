@@ -1,9 +1,21 @@
-import app from "./src/app.js";
-import config from "./src/config/config.js";
-import connectDB from "./src/config/db.js";
+import app from './src/app.js';
+import env from './src/config/env.js';
+import connectDB from './src/config/db.js';
 
-connectDB();
+const startServer = async () => {
+  await connectDB();
 
-app.listen(config.PORT, () => {
-    console.log(`Server is running on port ${config.PORT}`);
-})
+  const server = app.listen(env.PORT, () => {
+    console.log(`Server is running on port ${env.PORT}`);
+  });
+
+  process.on('SIGTERM', () => {
+    server.close(() => process.exit(0));
+  });
+
+  process.on('SIGINT', () => {
+    server.close(() => process.exit(0));
+  });
+};
+
+startServer();

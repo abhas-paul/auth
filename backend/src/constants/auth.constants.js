@@ -1,0 +1,18 @@
+export const AUTH_CONSTANTS = Object.freeze({
+  ACCESS_TOKEN_TTL: '15m',
+  REFRESH_TOKEN_TTL: '7d',
+  OTP_TTL_MS: 10 * 60 * 1000,
+  OTP_RESEND_COOLDOWN_MS: 60 * 1000,
+  MAX_OTP_ATTEMPTS: 5,
+  MAX_LOGIN_ATTEMPTS: 5,
+  LOGIN_LOCKOUT_MS: 15 * 60 * 1000,
+  PASSWORD_HASH_ROUNDS: 10,
+  MIN_PASSWORD_LENGTH: 8,
+  MAX_PASSWORD_LENGTH: 128,
+});
+
+export const ROLES = Object.freeze({
+  USER: 'user',
+  MODERATOR: 'moderator',
+  ADMIN: 'admin',
+});
