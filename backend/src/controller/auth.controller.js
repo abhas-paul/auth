@@ -2,7 +2,9 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 
 import User from "../models/User.model.js";
+import Session from "../models/Session.model.js";
 import config from "../config/config.js";
+
 
 async function register(req, res) {
 
@@ -19,8 +21,13 @@ async function register(req, res) {
     const user = new User({ username, email, password: hashedPassword });
     await user.save();
 
-    const accessToken = jwt.sign({ id: user._id }, config.JWT_SECRET, { expiresIn: "15m" });
     const refreshToken = jwt.sign({ id: user._id }, config.JWT_SECRET, { expiresIn: "7d" });
+    const refreshTokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
+
+    const session = new Session({ user: user._id, refreshToken: refreshTokenHash, ip: req.ip, userAgent: req.headers["user-agent"] });
+    await session.save();
+
+    const accessToken = jwt.sign({ id: user._id, sessionId: session._id }, config.JWT_SECRET, { expiresIn: "15m" });
 
     res.cookie("refreshToken", refreshToken, { httpOnly: true, secure: true, sameSite: "strict", maxAge: 7 * 24 * 60 * 60 * 1000 });
     res.status(201).json({ message: "User registered successfully", user: { id: user._id, username: user.username, email: user.email }, token: accessToken });
