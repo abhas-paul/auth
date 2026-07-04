@@ -2,6 +2,7 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 
 import User from "../models/User.model.js";
+import config from "../config.js";
 
 async function register(req, res) {
 
@@ -21,7 +22,9 @@ async function register(req, res) {
         password: hashedPassword,
     });
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "1h" });
+    const token = jwt.sign({ id: user._id }, config.JWT_SECRET, { expiresIn: "1d" });
+
+    res.status(201).json({ message: "User registered successfully", token });
 
 };
 
