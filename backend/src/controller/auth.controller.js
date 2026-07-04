@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 import User from "../models/User.model.js";
@@ -17,6 +17,18 @@ const cookieOptions = {
     maxAge: 7 * 24 * 60 * 60 * 1000,
 };
 
+async function findSessionByRefreshToken(refreshToken) {
+    const sessions = await Session.find({ revoked: false });
+
+    for (const session of sessions) {
+        if (await bcrypt.compare(refreshToken, session.refreshToken)) {
+            return session;
+        }
+    }
+
+    return null;
+}
+
 async function register(req, res) {
 
     const { username, email, password } = req.body;
@@ -31,7 +43,7 @@ async function register(req, res) {
         return res.status(409).json({ message: "Username or email already exists" });
     };
 
-    const hashedPassword = crypto.createHash("sha256").update(password).digest("hex");
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = new User({ username, email, password: hashedPassword });
     await user.save();
@@ -39,7 +51,7 @@ async function register(req, res) {
     const otp = generateOTP();
     const htnlTemplate = otpTemplate(otp);
 
-    const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
+    const otpHash = await bcrypt.hash(otp, 10);
 
     const otpDocument = new OTP({
         email,
@@ -77,16 +89,14 @@ async function login(req, res) {
         return res.status(403).json({ message: "Account not verified. Please verify your account before logging in." });
     }
 
-    const hashedPassword = crypto.createHash("sha256").update(password).digest("hex");
-
-    const isPasswordValid = user.password === hashedPassword;
+    const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
         return res.status(401).json({ message: "Invalid email or password" });
     }
 
     const refreshToken = jwt.sign({ id: user._id }, config.JWT_SECRET, { expiresIn: "7d" });
-    const refreshTokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
+    const refreshTokenHash = await bcrypt.hash(refreshToken, 10);
 
     const session = new Session({ user: user._id, refreshToken: refreshTokenHash, ip: req.ip, userAgent: req.headers["user-agent"] });
     await session.save();
@@ -106,9 +116,7 @@ async function logout(req, res) {
         return res.status(400).json({ message: "No refresh token provided" });
     }
 
-    const refreshTokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
-
-    const session = await Session.findOne({ refreshToken: refreshTokenHash, revoked: false });
+    const session = await findSessionByRefreshToken(refreshToken);
 
     if (!session) {
         return res.status(400).json({ message: "Invalid refresh token" });
@@ -187,9 +195,7 @@ async function refreshToken(req, res) {
         return res.status(401).json({ message: "Invalid refresh token" });
     }
 
-    const refreshTokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
-
-    const session = await Session.findOne({ refreshToken: refreshTokenHash, revoked: false });
+    const session = await findSessionByRefreshToken(refreshToken);
 
     if (!session) {
         return res.status(401).json({ message: "Invalid refresh token" });
@@ -199,7 +205,7 @@ async function refreshToken(req, res) {
 
     const newRefreshToken = jwt.sign({ id: decoded.id }, config.JWT_SECRET, { expiresIn: "7d" });
 
-    const newRefreshTokenHash = crypto.createHash("sha256").update(newRefreshToken).digest("hex");
+    const newRefreshTokenHash = await bcrypt.hash(newRefreshToken, 10);
     session.refreshToken = newRefreshTokenHash;
     await session.save();
 
@@ -216,9 +222,15 @@ async function verifyOTP(req, res) {
         return res.status(400).json({ message: "Email and OTP are required" });
     }
 
-    const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
+    const otpDocuments = await OTP.find({ email, expiresAt: { $gt: new Date() } });
+    let otpDocument = null;
 
-    const otpDocument = await OTP.findOne({ email, otpHash, expiresAt: { $gt: new Date() } });
+    for (const document of otpDocuments) {
+        if (await bcrypt.compare(otp, document.otpHash)) {
+            otpDocument = document;
+            break;
+        }
+    }
 
     if (!otpDocument) {
         return res.status(400).json({ message: "Invalid or expired OTP" });
