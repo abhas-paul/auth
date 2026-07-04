@@ -12,6 +12,7 @@ const userSchema = new mongoose.Schema(
     },
     email: {
       type: String,
+      required: [true, "Email is required"],
       lowercase: true,
       trim: true,
       unique: true,
@@ -20,6 +21,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: [true, "Password is required"],
       minlength: 6,
+    },
+    verified: {
+      type: Boolean,
+      default: false,
     },
     verified: {
       type: Boolean,
