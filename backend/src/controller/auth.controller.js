@@ -2,7 +2,7 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 
 import User from "../models/User.model.js";
-import config from "../config.js";
+import config from "../config/config.js";
 
 async function register(req, res) {
 
@@ -16,11 +16,8 @@ async function register(req, res) {
 
     const hashedPassword = crypto.createHash("sha256").update(password).digest("hex");
 
-    const user = new User.create({
-        username,
-        email,
-        password: hashedPassword,
-    });
+    const user = new User({ username, email, password: hashedPassword });
+    await user.save();
 
     const token = jwt.sign({ id: user._id }, config.JWT_SECRET, { expiresIn: "1d" });
 
@@ -36,4 +33,20 @@ async function logout(req, res) {
 
 };
 
-export { register, login, logout };
+async function me(req, res) {
+    
+    const token = req.headers.authorization?.split(" ")[1];
+
+    if (!token) {
+        return res.status(401).json({ message: "No token provided" });
+    };
+
+    const decoded = jwt.verify(token, config.JWT_SECRET);
+
+    const user = await User.findById(decoded.id);
+
+    res.status(200).json({ message: "User found", user: { id: user._id, username: user.username, email: user.email } });
+    
+};
+
+export { register, login, logout, me };
