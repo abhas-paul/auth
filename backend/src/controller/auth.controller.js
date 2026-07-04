@@ -36,6 +36,33 @@ async function register(req, res) {
 
 async function login(req, res) {
 
+    const { email, password } = req.body;
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+        return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    const hashedPassword = crypto.createHash("sha256").update(password).digest("hex");
+
+    const isPasswordValid = user.password === hashedPassword;
+
+    if (!isPasswordValid) {
+        return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    const refreshToken = jwt.sign({ id: user._id }, config.JWT_SECRET, { expiresIn: "7d" });
+    const refreshTokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
+
+    const session = new Session({ user: user._id, refreshToken: refreshTokenHash, ip: req.ip, userAgent: req.headers["user-agent"] });
+    await session.save();
+
+    const accessToken = jwt.sign({ id: user._id, sessionId: session._id }, config.JWT_SECRET, { expiresIn: "15m" });
+
+    res.cookie("refreshToken", refreshToken, { httpOnly: true, secure: true, sameSite: "strict", maxAge: 7 * 24 * 60 * 60 * 1000 });
+    res.status(200).json({ message: "User logged in successfully", user: { id: user._id, username: user.username, email: user.email }, token: accessToken });
+
 };
 
 async function logout(req, res) {
